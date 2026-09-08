@@ -1,0 +1,10 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import { IntegrationView } from "@/components/admin/integration-view";
+
+export const prerender = false;
+---
+
+<DashboardLayout title="Guía de Integración API | MailHub Multi-Sitio">
+  <IntegrationView client:load />
+</DashboardLayout>

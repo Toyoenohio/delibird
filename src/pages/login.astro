@@ -1,0 +1,10 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { LoginView } from "@/components/auth/login-view";
+
+export const prerender = false;
+---
+
+<Layout title="Iniciar Sesión | MailHub Multi-Sitio">
+  <LoginView client:load />
+</Layout>

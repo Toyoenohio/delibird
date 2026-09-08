@@ -1,8 +1,4 @@
-"use client";
-
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   Inbox,
   UploadCloud,
@@ -10,7 +6,6 @@ import {
   Users,
   ShieldAlert,
   Code2,
-  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,25 +16,33 @@ interface CurrentUser {
   role: "admin" | "operator";
 }
 
-export function Sidebar() {
-  const pathname = usePathname();
+interface SidebarProps {
+  currentPath?: string;
+}
+
+export function Sidebar({ currentPath }: SidebarProps) {
+  const [pathname, setPathname] = useState(currentPath || "");
   const [user, setUser] = useState<CurrentUser | null>(null);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && !pathname) {
+      setPathname(window.location.pathname);
+    }
+
     fetch("/api/auth/me")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.user) setUser(data.user);
       })
       .catch(() => {});
-  }, []);
+  }, [pathname]);
 
   const navItems = [
     {
       title: "Bandeja de Correos",
       href: "/",
       icon: Inbox,
-      active: pathname === "/",
+      active: pathname === "/" || pathname === "",
     },
     {
       title: "Importar CSV",
@@ -79,7 +82,7 @@ export function Sidebar() {
           </p>
           <nav className="space-y-1">
             {navItems.map((item) => (
-              <Link
+              <a
                 key={item.href}
                 href={item.href}
                 className={cn(
@@ -91,7 +94,7 @@ export function Sidebar() {
               >
                 <item.icon className="w-4 h-4" />
                 <span>{item.title}</span>
-              </Link>
+              </a>
             ))}
           </nav>
         </div>
@@ -104,7 +107,7 @@ export function Sidebar() {
             </p>
             <nav className="space-y-1">
               {adminItems.map((item) => (
-                <Link
+                <a
                   key={item.href}
                   href={item.href}
                   className={cn(
@@ -116,7 +119,7 @@ export function Sidebar() {
                 >
                   <item.icon className="w-4 h-4" />
                   <span>{item.title}</span>
-                </Link>
+                </a>
               ))}
             </nav>
           </div>
@@ -129,7 +132,7 @@ export function Sidebar() {
           <span>Neon PostgreSQL</span>
         </p>
         <p className="text-[11px] leading-relaxed">
-          Base de datos serverless multi-tenant con partición por sitio web.
+          Base de datos serverless con partición por sitio web.
         </p>
       </div>
     </aside>

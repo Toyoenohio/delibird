@@ -1,15 +1,34 @@
-"use client";
-
-import React from "react";
-import { useTheme } from "@/components/theme-provider";
+import React, { useEffect, useState } from "react";
 import { Sun, Moon } from "lucide-react";
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isDark = document.documentElement.classList.contains("dark");
+      setTheme(isDark ? "dark" : "light");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+
+    if (nextTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("theme", nextTheme);
+    }
+  };
 
   return (
     <button
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      onClick={toggleTheme}
       className="p-2 rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors flex items-center justify-center shadow-sm"
       title="Alternar tema claro/oscuro"
       type="button"

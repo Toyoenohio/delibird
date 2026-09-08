@@ -1,15 +1,15 @@
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
-import { cookies } from "next/headers";
 import { db } from "@/db";
 import { users, userWebsites } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import type { AstroCookies } from "astro";
 
 const SECRET_KEY = new TextEncoder().encode(
   process.env.JWT_SECRET || "default_jwt_secret_change_me_in_production_32_characters_minimum"
 );
 
-const COOKIE_NAME = "session_token";
+export const COOKIE_NAME = "session_token";
 
 export interface SessionPayload {
   userId: string;
@@ -43,15 +43,38 @@ export async function verifyToken(token: string): Promise<SessionPayload | null>
   }
 }
 
-export async function getSession(): Promise<SessionPayload | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
+export function parseCookieHeader(cookieHeader?: string | null): Record<string, string> {
+  if (!cookieHeader) return {};
+  const list: Record<string, string> = {};
+  cookieHeader.split(";").forEach((cookie) => {
+    const parts = cookie.split("=");
+    const key = parts.shift()?.trim();
+    if (key) {
+      list[key] = decodeURI(parts.join("=").trim());
+    }
+  });
+  return list;
+}
+
+export async function getSessionFromRequest(request: Request, cookies?: AstroCookies): Promise<SessionPayload | null> {
+  let token: string | undefined;
+
+  if (cookies) {
+    token = cookies.get(COOKIE_NAME)?.value;
+  }
+
+  if (!token) {
+    const cookieHeader = request.headers.get("cookie");
+    const parsed = parseCookieHeader(cookieHeader);
+    token = parsed[COOKIE_NAME];
+  }
+
   if (!token) return null;
   return await verifyToken(token);
 }
 
-export async function getCurrentUserWithSites() {
-  const session = await getSession();
+export async function getCurrentUserWithSites(request: Request, cookies?: AstroCookies) {
+  const session = await getSessionFromRequest(request, cookies);
   if (!session) return null;
 
   const [user] = await db
@@ -67,7 +90,6 @@ export async function getCurrentUserWithSites() {
 
   if (!user) return null;
 
-  // If user is operator, retrieve assigned website IDs
   let assignedWebsiteIds: string[] = [];
   if (user.role === "operator") {
     const assigned = await db
@@ -83,10 +105,8 @@ export async function getCurrentUserWithSites() {
   };
 }
 
-export async function setSessionCookie(payload: SessionPayload) {
-  const token = await signToken(payload);
-  const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, token, {
+export function setSessionCookie(cookies: AstroCookies, token: string) {
+  cookies.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -95,7 +115,8 @@ export async function setSessionCookie(payload: SessionPayload) {
   });
 }
 
-export async function removeSessionCookie() {
-  const cookieStore = await cookies();
-  cookieStore.delete(COOKIE_NAME);
+export function removeSessionCookie(cookies: AstroCookies) {
+  cookies.delete(COOKIE_NAME, {
+    path: "/",
+  });
 }

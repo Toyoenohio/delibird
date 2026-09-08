@@ -1,0 +1,10 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import { UsersView } from "@/components/admin/users-view";
+
+export const prerender = false;
+---
+
+<DashboardLayout title="Usuarios y Permisos | MailHub Multi-Sitio">
+  <UsersView client:load />
+</DashboardLayout>

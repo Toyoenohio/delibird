@@ -1,0 +1,10 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import { ImportView } from "@/components/import/import-view";
+
+export const prerender = false;
+---
+
+<DashboardLayout title="Importar CSV | MailHub Multi-Sitio">
+  <ImportView client:load />
+</DashboardLayout>

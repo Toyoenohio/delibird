@@ -1,42 +1,49 @@
-import { NextRequest, NextResponse } from "next/server";
+import { defineMiddleware } from "astro:middleware";
+import { getSessionFromRequest } from "@/lib/auth";
 
-export function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
-  const token = req.cookies.get("session_token")?.value;
+export const onRequest = defineMiddleware(async (context, next) => {
+  const { pathname } = context.url;
 
-  const isAuthPage = pathname.startsWith("/login");
+  const isAuthPage = pathname === "/login" || pathname === "/login/";
   const isPublicApi =
     pathname.startsWith("/api/submissions") ||
     pathname.startsWith("/api/auth/login") ||
     pathname.startsWith("/api/auth/logout");
 
-  if (isPublicApi) {
-    return NextResponse.next();
+  const isStatic =
+    pathname.startsWith("/_astro") ||
+    pathname.startsWith("/favicon") ||
+    pathname.endsWith(".svg") ||
+    pathname.endsWith(".png") ||
+    pathname.endsWith(".ico") ||
+    pathname.endsWith(".css") ||
+    pathname.endsWith(".js");
+
+  if (isPublicApi || isStatic) {
+    return next();
   }
 
-  const isAuthenticated = !!token && token.trim().length > 0;
+  const session = await getSessionFromRequest(context.request, context.cookies);
+  const isAuthenticated = !!session;
 
-  // If user is trying to access login page while already authenticated -> redirect to /
+  // Redirect authenticated users away from /login
   if (isAuthPage) {
     if (isAuthenticated) {
-      return NextResponse.redirect(new URL("/", req.url));
+      return context.redirect("/");
     }
-    return NextResponse.next();
+    return next();
   }
 
-  // If user is not authenticated and trying to access protected routes -> redirect to /login
+  // Redirect unauthenticated users to /login
   if (!isAuthenticated) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+      return new Response(JSON.stringify({ error: "No autorizado" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
     }
-    return NextResponse.redirect(new URL("/login", req.url));
+    return context.redirect("/login");
   }
 
-  return NextResponse.next();
-}
-
-export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
-};
+  return next();
+});

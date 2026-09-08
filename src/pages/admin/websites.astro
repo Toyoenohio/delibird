@@ -1,0 +1,10 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import { WebsitesView } from "@/components/admin/websites-view";
+
+export const prerender = false;
+---
+
+<DashboardLayout title="Gestión de Sitios Web | MailHub Multi-Sitio">
+  <WebsitesView client:load />
+</DashboardLayout>
