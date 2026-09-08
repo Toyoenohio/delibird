@@ -5,9 +5,13 @@ import { users, userWebsites } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { AstroCookies } from "astro";
 
-const SECRET_KEY = new TextEncoder().encode(
-  process.env.JWT_SECRET || "default_jwt_secret_change_me_in_production_32_characters_minimum"
-);
+function getSecretKey(): Uint8Array {
+  const secret =
+    (typeof process !== "undefined" ? process.env?.JWT_SECRET : undefined) ||
+    (import.meta as any).env?.JWT_SECRET ||
+    "default_jwt_secret_change_me_in_production_32_characters_minimum";
+  return new TextEncoder().encode(secret);
+}
 
 export const COOKIE_NAME = "session_token";
 
@@ -31,12 +35,12 @@ export async function signToken(payload: SessionPayload): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(SECRET_KEY);
+    .sign(getSecretKey());
 }
 
 export async function verifyToken(token: string): Promise<SessionPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, SECRET_KEY);
+    const { payload } = await jwtVerify(token, getSecretKey());
     return payload as unknown as SessionPayload;
   } catch {
     return null;

@@ -17,6 +17,18 @@ import { defineMiddleware } from "astro:middleware";
 import { getSessionFromRequest } from "@/lib/auth";
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  // Populate process.env with Cloudflare Pages environment variables at request time
+  const runtimeEnv = (context.locals as any)?.runtime?.env;
+  if (runtimeEnv) {
+    if (typeof process === "undefined") {
+      (globalThis as any).process = { env: {} };
+    }
+    if (!process.env) {
+      process.env = {};
+    }
+    Object.assign(process.env, runtimeEnv);
+  }
+
   const { pathname } = context.url;
 
   const isAuthPage = pathname === "/login" || pathname === "/login/";
