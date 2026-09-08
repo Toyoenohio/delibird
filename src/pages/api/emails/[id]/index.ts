@@ -168,10 +168,10 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
 
 export const DELETE: APIRoute = async ({ request, cookies, params }) => {
   const user = await getCurrentUserWithSites(request, cookies);
-  if (!user || user.role !== "admin") {
+  if (!user) {
     return new Response(
-      JSON.stringify({ error: "Permiso denegado: solo administradores pueden eliminar registros" }),
-      { status: 403, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({ error: "No autorizado" }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
     );
   }
 
@@ -184,6 +184,30 @@ export const DELETE: APIRoute = async ({ request, cookies, params }) => {
   }
 
   try {
+    const [existing] = await db
+      .select()
+      .from(emails)
+      .where(eq(emails.id, id))
+      .limit(1);
+
+    if (!existing) {
+      return new Response(
+        JSON.stringify({ error: "Correo no encontrado" }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (
+      user.role === "operator" &&
+      existing.websiteId &&
+      !user.assignedWebsiteIds.includes(existing.websiteId)
+    ) {
+      return new Response(
+        JSON.stringify({ error: "Permiso denegado para eliminar este registro" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     await db.delete(emails).where(eq(emails.id, id));
     return new Response(
       JSON.stringify({ success: true, message: "Correo eliminado correctamente" }),

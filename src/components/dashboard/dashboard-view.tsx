@@ -23,6 +23,9 @@ export function DashboardView() {
   // Modal State
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
 
+  // Selection state for bulk operations
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
   // Fetch Websites
   const fetchWebsites = useCallback(async () => {
     try {
@@ -55,6 +58,8 @@ export function DashboardView() {
         setEmails(data.emails || []);
         setTotal(data.total || 0);
         setTotalPages(data.totalPages || 1);
+        // Clear selection on page or filter change
+        setSelectedIds([]);
       }
     } catch (err) {
       console.error(err);
@@ -78,6 +83,7 @@ export function DashboardView() {
     setStartDate("");
     setEndDate("");
     setPage(1);
+    setSelectedIds([]);
   };
 
   const handleQuickStatusChange = async (id: string, newStatus: string) => {
@@ -94,6 +100,87 @@ export function DashboardView() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // Toggle single selection
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  // Toggle select all on current page
+  const handleToggleSelectAll = () => {
+    if (emails.length > 0 && selectedIds.length === emails.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(emails.map((e) => e.id));
+    }
+  };
+
+  // Delete a single email
+  const handleDeleteEmail = async (id: string, senderName?: string) => {
+    const label = senderName ? `el correo de "${senderName}"` : "este correo";
+    if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente ${label}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/emails/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setEmails((prev) => prev.filter((e) => e.id !== id));
+        setSelectedIds((prev) => prev.filter((item) => item !== id));
+        setTotal((prev) => Math.max(0, prev - 1));
+        if (selectedEmailId === id) {
+          setSelectedEmailId(null);
+        }
+      } else {
+        const json = await res.json();
+        alert(json.error || "Error al eliminar el correo");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error de conexión al eliminar el correo");
+    }
+  };
+
+  // Bulk delete selected emails
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+
+    if (
+      !confirm(
+        `¿Estás seguro de que deseas eliminar permanentemente los ${selectedIds.length} correos seleccionados? Esta acción es irreversible.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/emails", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+
+      if (res.ok) {
+        const count = selectedIds.length;
+        setEmails((prev) => prev.filter((e) => !selectedIds.includes(e.id)));
+        setTotal((prev) => Math.max(0, prev - count));
+        if (selectedEmailId && selectedIds.includes(selectedEmailId)) {
+          setSelectedEmailId(null);
+        }
+        setSelectedIds([]);
+      } else {
+        const json = await res.json();
+        alert(json.error || "Error al eliminar los correos seleccionados");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error de conexión al eliminar los correos");
     }
   };
 
@@ -190,6 +277,11 @@ export function DashboardView() {
         total={total}
         page={page}
         totalPages={totalPages}
+        selectedIds={selectedIds}
+        onToggleSelect={handleToggleSelect}
+        onToggleSelectAll={handleToggleSelectAll}
+        onDeleteEmail={(id, senderName) => handleDeleteEmail(id, senderName)}
+        onBulkDelete={handleBulkDelete}
         onPageChange={(p) => setPage(p)}
         onSelectEmail={(id) => setSelectedEmailId(id)}
         onQuickStatusChange={handleQuickStatusChange}
@@ -203,6 +295,12 @@ export function DashboardView() {
           if (selectedEmailId) {
             handleQuickStatusChange(selectedEmailId, newStatus);
           }
+        }}
+        onDeleteEmail={(id) => {
+          setEmails((prev) => prev.filter((e) => e.id !== id));
+          setSelectedIds((prev) => prev.filter((item) => item !== id));
+          setTotal((prev) => Math.max(0, prev - 1));
+          setSelectedEmailId(null);
         }}
       />
     </div>

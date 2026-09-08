@@ -13,6 +13,7 @@ import {
   MessageCircle,
   MessageSquare,
   Clock,
+  Trash2,
 } from "lucide-react";
 import { formatDate, cleanPhone, getWhatsAppUrl, extractDomain, getDomainColor, STATUS_CONFIG } from "@/lib/utils";
 import { StatusBadge } from "./status-badge";
@@ -37,12 +38,14 @@ interface EmailDetailModalProps {
   emailId: string | null;
   onClose: () => void;
   onStatusUpdated: (newStatus: string) => void;
+  onDeleteEmail?: (id: string) => void;
 }
 
 export function EmailDetailModal({
   emailId,
   onClose,
   onStatusUpdated,
+  onDeleteEmail,
 }: EmailDetailModalProps) {
   const [data, setData] = useState<{
     email: any;
@@ -54,6 +57,7 @@ export function EmailDetailModal({
   const [newNote, setNewNote] = useState("");
   const [submittingNote, setSubmittingNote] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!emailId) return;
@@ -122,6 +126,38 @@ export function EmailDetailModal({
       console.error(err);
     } finally {
       setSubmittingNote(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!emailId || !email) return;
+    if (
+      !confirm(
+        `¿Estás seguro de que deseas eliminar permanentemente este correo de "${email.senderName}"? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/emails/${emailId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        if (onDeleteEmail) {
+          onDeleteEmail(emailId);
+        }
+        onClose();
+      } else {
+        const json = await res.json();
+        alert(json.error || "Error al eliminar el correo");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error de conexión al eliminar el correo");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -374,7 +410,16 @@ export function EmailDetailModal({
         )}
 
         {/* Modal Footer */}
-        <div className="px-6 py-3 border-t border-border bg-muted/20 flex justify-end">
+        <div className="px-6 py-3 border-t border-border bg-muted/20 flex items-center justify-between">
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 border border-destructive/20 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>{deleting ? "Eliminando..." : "Eliminar Correo"}</span>
+          </button>
+
           <button
             onClick={onClose}
             className="px-4 py-2 text-xs font-medium bg-secondary hover:bg-muted text-foreground border border-border rounded-lg transition-colors"

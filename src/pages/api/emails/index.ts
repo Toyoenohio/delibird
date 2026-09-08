@@ -143,3 +143,54 @@ export const GET: APIRoute = async ({ request, cookies, url }) => {
     );
   }
 };
+
+export const DELETE: APIRoute = async ({ request, cookies }) => {
+  const user = await getCurrentUserWithSites(request, cookies);
+  if (!user) {
+    return new Response(
+      JSON.stringify({ error: "No autorizado" }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const ids: string[] = Array.isArray(body.ids) ? body.ids : body.id ? [body.id] : [];
+
+    if (ids.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "Debe proporcionar al menos un ID para eliminar" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (user.role === "admin") {
+      await db.delete(emails).where(inArray(emails.id, ids));
+    } else {
+      if (user.assignedWebsiteIds.length === 0) {
+        return new Response(
+          JSON.stringify({ error: "Permiso denegado: no tienes sitios asignados" }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      await db.delete(emails).where(
+        and(
+          inArray(emails.id, ids),
+          inArray(emails.websiteId, user.assignedWebsiteIds)
+        )
+      );
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, count: ids.length }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (error: any) {
+    console.error("Error bulk deleting emails:", error);
+    return new Response(
+      JSON.stringify({ error: error?.message || "Error al eliminar los correos" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+};
+

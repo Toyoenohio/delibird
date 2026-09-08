@@ -8,6 +8,7 @@ import {
   Phone,
   MessageCircle,
   Eye,
+  Trash2,
   ChevronLeft,
   ChevronRight,
   Globe,
@@ -36,6 +37,11 @@ interface EmailTableProps {
   total: number;
   page: number;
   totalPages: number;
+  selectedIds?: string[];
+  onToggleSelect?: (id: string) => void;
+  onToggleSelectAll?: () => void;
+  onDeleteEmail?: (id: string, senderName: string) => void;
+  onBulkDelete?: () => void;
   onPageChange: (newPage: number) => void;
   onSelectEmail: (id: string) => void;
   onQuickStatusChange: (id: string, newStatus: string) => void;
@@ -47,6 +53,11 @@ export function EmailTable({
   total,
   page,
   totalPages,
+  selectedIds = [],
+  onToggleSelect,
+  onToggleSelectAll,
+  onDeleteEmail,
+  onBulkDelete,
   onPageChange,
   onSelectEmail,
   onQuickStatusChange,
@@ -74,13 +85,42 @@ export function EmailTable({
     );
   }
 
+  const allSelected = emails.length > 0 && selectedIds.length === emails.length;
+
   return (
     <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
+      {/* Bulk Action Bar when items are selected */}
+      {selectedIds.length > 0 && (
+        <div className="flex items-center justify-between px-4 py-2.5 bg-destructive/10 border-b border-destructive/20 text-xs text-destructive animate-in fade-in duration-150">
+          <span className="font-semibold">
+            {selectedIds.length} {selectedIds.length === 1 ? "correo seleccionado" : "correos seleccionados"}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onBulkDelete}
+              className="flex items-center gap-1.5 px-3 py-1 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-lg font-medium transition-colors shadow-sm"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Eliminar seleccionados</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table Container */}
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-border bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <th className="py-3 px-3 w-8" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={onToggleSelectAll}
+                  className="rounded text-primary focus:ring-0 cursor-pointer"
+                  title="Seleccionar todos"
+                />
+              </th>
               <th className="py-3 px-4">Estado</th>
               <th className="py-3 px-4">Fecha</th>
               <th className="py-3 px-4">Sitio Web / Origen</th>
@@ -95,13 +135,25 @@ export function EmailTable({
               const waUrl = getWhatsAppUrl(email.senderPhone, email.senderName);
               const displayName = email.websiteName || extractDomain(email.sourceUrl);
               const displayColor = email.websiteColor || getDomainColor(displayName);
+              const isSelected = selectedIds.includes(email.id);
 
               return (
                 <tr
                   key={email.id}
-                  className="hover:bg-muted/30 transition-colors group cursor-pointer"
+                  className={`hover:bg-muted/30 transition-colors group cursor-pointer ${
+                    isSelected ? "bg-primary/5" : ""
+                  }`}
                   onClick={() => onSelectEmail(email.id)}
                 >
+                  {/* Select Checkbox */}
+                  <td className="py-3 px-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => onToggleSelect?.(email.id)}
+                      className="rounded text-primary focus:ring-0 cursor-pointer"
+                    />
+                  </td>
                   {/* Status */}
                   <td className="py-3 px-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <select
@@ -187,6 +239,16 @@ export function EmailTable({
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </button>
+
+                      {onDeleteEmail && (
+                        <button
+                          onClick={() => onDeleteEmail(email.id, email.senderName)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          title="Eliminar correo"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
