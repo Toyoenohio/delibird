@@ -1,3 +1,18 @@
+// Polyfill MessageChannel if missing in older edge runtimes
+if (typeof globalThis.MessageChannel === "undefined") {
+  class MessagePortPolyfill {
+    onmessage: any = null;
+    postMessage(_data: any) {}
+    start() {}
+    close() {}
+  }
+  class MessageChannelPolyfill {
+    port1 = new MessagePortPolyfill();
+    port2 = new MessagePortPolyfill();
+  }
+  (globalThis as any).MessageChannel = MessageChannelPolyfill;
+}
+
 import { defineMiddleware } from "astro:middleware";
 import { getSessionFromRequest } from "@/lib/auth";
 
