@@ -14,9 +14,21 @@ import {
   MessageSquare,
   Clock,
   Trash2,
+  Sparkles,
+  Edit3,
+  Plus,
+  Save,
 } from "lucide-react";
 import { formatDate, cleanPhone, getWhatsAppUrl, extractDomain, getDomainColor, STATUS_CONFIG } from "@/lib/utils";
 import { StatusBadge } from "./status-badge";
+
+function formatFieldLabel(key: string): string {
+  return key
+    .replace(/[_-]/g, " ")
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (str) => str.toUpperCase())
+    .trim();
+}
 
 interface Note {
   id: string;
@@ -59,13 +71,23 @@ export function EmailDetailModal({
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Extra fields state
+  const [isEditingExtras, setIsEditingExtras] = useState(false);
+  const [editableExtras, setEditableExtras] = useState<Record<string, any>>({});
+  const [newExtraKey, setNewExtraKey] = useState("");
+  const [newExtraVal, setNewExtraVal] = useState("");
+  const [savingExtras, setSavingExtras] = useState(false);
+
   useEffect(() => {
     if (!emailId) return;
     setLoading(true);
     fetch(`/api/emails/${emailId}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((res) => {
-        if (res) setData(res);
+        if (res) {
+          setData(res);
+          setEditableExtras(res.email?.extraFields || {});
+        }
         setLoading(false);
       })
       .catch((err) => {
@@ -73,6 +95,58 @@ export function EmailDetailModal({
         setLoading(false);
       });
   }, [emailId]);
+
+  const handleSaveExtras = async () => {
+    if (!emailId) return;
+    setSavingExtras(true);
+    try {
+      const res = await fetch(`/api/emails/${emailId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ extraFields: editableExtras }),
+      });
+      if (res.ok) {
+        setData((prev) =>
+          prev ? { ...prev, email: { ...prev.email, extraFields: editableExtras } } : null
+        );
+        setIsEditingExtras(false);
+      } else {
+        const json = await res.json();
+        alert(json.error || "Error al guardar campos personalizados");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error de conexión al guardar campos");
+    } finally {
+      setSavingExtras(false);
+    }
+  };
+
+  const handleAddCustomField = () => {
+    const key = newExtraKey.trim();
+    if (!key) return;
+    setEditableExtras((prev) => ({
+      ...prev,
+      [key]: newExtraVal.trim(),
+    }));
+    setNewExtraKey("");
+    setNewExtraVal("");
+  };
+
+  const handleRemoveCustomField = (keyToRemove: string) => {
+    setEditableExtras((prev) => {
+      const next = { ...prev };
+      delete next[keyToRemove];
+      return next;
+    });
+  };
+
+  const handleFieldChange = (key: string, value: string) => {
+    setEditableExtras((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
 
   if (!emailId) return null;
 
@@ -336,6 +410,142 @@ export function EmailDetailModal({
               <div className="p-4 rounded-xl border border-border bg-muted/20 text-sm text-foreground whitespace-pre-wrap leading-relaxed">
                 {email.message}
               </div>
+            </div>
+
+            {/* Custom Extra Fields Section */}
+            <div className="space-y-3 pt-2 border-t border-border">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <span>Información Adicional del Formulario ({Object.keys(email.extraFields || {}).length})</span>
+                </h3>
+
+                {!isEditingExtras ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditableExtras(email.extraFields || {});
+                      setIsEditingExtras(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10 border border-primary/20 rounded-lg transition-colors"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Editar Campos</span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditableExtras(email.extraFields || {});
+                        setIsEditingExtras(false);
+                      }}
+                      className="px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted border border-border rounded-lg transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveExtras}
+                      disabled={savingExtras}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>{savingExtras ? "Guardando..." : "Guardar Cambios"}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {!isEditingExtras ? (
+                /* View Mode */
+                email.extraFields && Object.keys(email.extraFields).length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {Object.entries(email.extraFields).map(([key, val]) => (
+                      <div
+                        key={key}
+                        className="p-3 rounded-xl border border-border bg-card space-y-1 shadow-sm"
+                      >
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          {formatFieldLabel(key)}
+                        </p>
+                        <p className="text-xs font-medium text-foreground break-words">
+                          {typeof val === "object" ? JSON.stringify(val) : String(val ?? "-")}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl border border-dashed border-border text-center text-xs text-muted-foreground">
+                    Este formulario no incluyó campos extras. Haz clic en <strong>Editar Campos</strong> si deseas añadir información personalizada para el seguimiento.
+                  </div>
+                )
+              ) : (
+                /* Edit Mode */
+                <div className="space-y-3 p-4 rounded-xl border border-border bg-muted/20">
+                  <div className="space-y-2 max-h-56 overflow-y-auto">
+                    {Object.entries(editableExtras).map(([key, val]) => (
+                      <div key={key} className="flex items-center gap-2 bg-background p-2 rounded-lg border border-border">
+                        <span className="w-1/3 text-xs font-semibold text-foreground truncate" title={key}>
+                          {formatFieldLabel(key)}
+                        </span>
+                        <input
+                          type="text"
+                          value={typeof val === "object" ? JSON.stringify(val) : String(val ?? "")}
+                          onChange={(e) => handleFieldChange(key, e.target.value)}
+                          className="flex-1 px-2.5 py-1 text-xs bg-muted/30 border border-input rounded focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+                          placeholder="Valor del campo..."
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCustomField(key)}
+                          className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                          title="Eliminar campo"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                    {Object.keys(editableExtras).length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-2 italic">
+                        No hay campos adicionales aún. Añade uno abajo.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Add New Custom Field Row */}
+                  <div className="pt-2 border-t border-border/60">
+                    <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">
+                      Agregar nuevo campo personalizado:
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        placeholder="Nombre (ej. Presupuesto, Ciudad)"
+                        value={newExtraKey}
+                        onChange={(e) => setNewExtraKey(e.target.value)}
+                        className="flex-1 px-3 py-1.5 text-xs bg-background border border-input rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Valor (ej. $5,000 USD)"
+                        value={newExtraVal}
+                        onChange={(e) => setNewExtraVal(e.target.value)}
+                        className="flex-1 px-3 py-1.5 text-xs bg-background border border-input rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddCustomField}
+                        disabled={!newExtraKey.trim()}
+                        className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium bg-secondary hover:bg-muted text-foreground border border-border rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Añadir</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Internal Notes Section */}

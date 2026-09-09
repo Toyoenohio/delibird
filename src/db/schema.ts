@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, pgEnum, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, pgEnum, primaryKey, jsonb } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const roleEnum = pgEnum("user_role", ["admin", "operator"]);
@@ -59,6 +59,7 @@ export const emails = pgTable("emails", {
   subject: text("subject").notNull(), // Asunto
   message: text("message").notNull(), // Mensaje
   status: emailStatusEnum("status").default("nuevo").notNull(),
+  extraFields: jsonb("extra_fields").$type<Record<string, any>>().default({}).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

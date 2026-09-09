@@ -187,17 +187,27 @@ export function DashboardView() {
   const handleExportCSV = () => {
     if (emails.length === 0) return;
 
-    const exportData = emails.map((e) => ({
-      Fecha: e.createdAt,
-      "Sitio Web": e.websiteName || "Sin asignar",
-      "URL Origen": e.sourceUrl,
-      Remitente: e.senderName,
-      Correo: e.senderEmail,
-      Teléfono: e.senderPhone || "",
-      Asunto: e.subject,
-      Mensaje: e.message,
-      Estado: e.status,
-    }));
+    const exportData = emails.map((e) => {
+      const extrasText =
+        e.extraFields && Object.keys(e.extraFields).length > 0
+          ? Object.entries(e.extraFields)
+              .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`)
+              .join(" | ")
+          : "";
+
+      return {
+        Fecha: e.createdAt,
+        "Sitio Web": e.websiteName || "Sin asignar",
+        "URL Origen": e.sourceUrl,
+        Remitente: e.senderName,
+        Correo: e.senderEmail,
+        Teléfono: e.senderPhone || "",
+        Asunto: e.subject,
+        Mensaje: e.message,
+        Estado: e.status,
+        "Campos Extras": extrasText,
+      };
+    });
 
     const csvString = Papa.unparse(exportData);
     const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });

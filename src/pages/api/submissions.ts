@@ -24,39 +24,79 @@ export const POST: APIRoute = async ({ request }) => {
 
     const {
       sourceUrl,
+      source_url,
+      page_url,
       senderName,
+      sender_name,
+      name,
+      nombre,
       senderEmail,
+      sender_email,
+      email,
+      correo,
       senderPhone,
+      sender_phone,
+      phone,
+      telefono,
       subject,
+      asunto,
       message,
+      mensaje,
       websiteId,
+      website_id,
+      status,
+      extraFields,
+      extra_fields,
+      ...restFields
     } = body;
 
-    if (!senderEmail || !message) {
+    const finalEmail = (senderEmail || sender_email || email || correo || "").toString().trim();
+    const finalMessage = (message || mensaje || "").toString().trim();
+
+    if (!finalEmail || !finalMessage) {
       return new Response(
         JSON.stringify({ error: "Correo del remitente y mensaje son requeridos" }),
         { status: 400, headers: corsHeaders }
       );
     }
 
+    const finalSenderName = (senderName || sender_name || name || nombre || "Sin Nombre").toString().trim();
+    const finalPhone = (senderPhone || sender_phone || phone || telefono || null)?.toString().trim() || null;
+    const finalSubject = (subject || asunto || "Contacto desde sitio web").toString().trim();
+
     const finalSourceUrl =
       sourceUrl ||
+      source_url ||
+      page_url ||
       request.headers.get("referer") ||
       request.headers.get("origin") ||
       "API Directa";
+
+    // Combine any explicit extra_fields object with any dynamic leftover fields
+    const explicitExtras = (typeof extraFields === "object" && extraFields !== null)
+      ? extraFields
+      : (typeof extra_fields === "object" && extra_fields !== null)
+      ? extra_fields
+      : {};
+
+    const combinedExtraFields = {
+      ...explicitExtras,
+      ...restFields,
+    };
 
     // Neon PostgreSQL Trigger automatically handles website creation/linking if websiteId is omitted!
     const [newEmail] = await db
       .insert(emails)
       .values({
-        websiteId: websiteId || null,
+        websiteId: websiteId || website_id || null,
         sourceUrl: finalSourceUrl,
-        senderName: senderName || "Sin Nombre",
-        senderEmail: senderEmail.trim(),
-        senderPhone: senderPhone || null,
-        subject: subject || "Contacto desde sitio web",
-        message: message.trim(),
-        status: "nuevo",
+        senderName: finalSenderName,
+        senderEmail: finalEmail,
+        senderPhone: finalPhone,
+        subject: finalSubject,
+        message: finalMessage,
+        status: status || "nuevo",
+        extraFields: combinedExtraFields,
       })
       .returning();
 

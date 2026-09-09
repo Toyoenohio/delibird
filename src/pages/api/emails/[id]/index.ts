@@ -36,6 +36,7 @@ export const GET: APIRoute = async ({ request, cookies, params }) => {
         subject: emails.subject,
         message: emails.message,
         status: emails.status,
+        extraFields: emails.extraFields,
         createdAt: emails.createdAt,
         updatedAt: emails.updatedAt,
         websiteName: websites.name,
@@ -102,7 +103,8 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
   }
 
   try {
-    const { status } = await request.json();
+    const body = await request.json();
+    const { status, extraFields } = body;
 
     const [existing] = await db
       .select()
@@ -129,29 +131,39 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
     }
 
     const previousStatus = existing.status;
+    const updateData: Record<string, any> = {
+      updatedAt: new Date(),
+    };
 
+    let statusChanged = false;
     if (status && status !== previousStatus) {
-      const [updated] = await db
-        .update(emails)
-        .set({
-          status,
-          updatedAt: new Date(),
-        })
-        .where(eq(emails.id, id))
-        .returning();
+      updateData.status = status;
+      statusChanged = true;
+    }
 
+    if (extraFields !== undefined && typeof extraFields === "object" && extraFields !== null) {
+      updateData.extraFields = extraFields;
+    }
+
+    const [updated] = await db
+      .update(emails)
+      .set(updateData)
+      .where(eq(emails.id, id))
+      .returning();
+
+    if (statusChanged) {
       await db.insert(emailStatusHistory).values({
         emailId: id,
         userId: user.id,
         previousStatus,
         newStatus: status,
       });
-
-      return new Response(
-        JSON.stringify({ success: true, email: updated }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      );
     }
+
+    return new Response(
+      JSON.stringify({ success: true, email: updated }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
 
     return new Response(
       JSON.stringify({ success: true, email: existing }),

@@ -21,7 +21,8 @@ INSERT INTO emails (
   sender_phone,
   subject,
   message,
-  status
+  status,
+  extra_fields
 ) VALUES (
   '{{ $json.source_url || $json.web || "https://tu-pagina.com" }}',
   '{{ $json.nombre || $json.name || "Sin Nombre" }}',
@@ -29,20 +30,56 @@ INSERT INTO emails (
   '{{ $json.telefono || $json.phone || null }}',
   '{{ $json.asunto || $json.subject || "Consulta Web" }}',
   '{{ $json.mensaje || $json.message }}',
-  'nuevo'
+  'nuevo',
+  '{{ $json.extra_fields || "{}" }}'::jsonb
 );`;
+
+  const n8nElementorCodeExample = `// En n8n: Coloca un nodo 'Code' (JavaScript - Run Once for Each Item)
+// Recibe el webhook directo de Elementor y separa estándar de extras automáticamente:
+const fields = $json.fields || {};
+const meta = $json.meta || {};
+
+// 1. Extraer campos estándar
+const sender_name = fields.name?.value || fields.nombre?.value || 'Sin Nombre';
+const sender_email = fields.email?.value || fields.correo?.value || '';
+const sender_phone = fields.phone?.value || fields.telefono?.value || null;
+const message = fields.message?.value || fields.mensaje?.value || '';
+const source_url = meta.page_url || $json.source_url || 'https://sitio-cliente.com';
+
+// 2. Extraer automáticamente cualquier campo extra que tenga el cliente
+const standard = ['name', 'nombre', 'email', 'correo', 'phone', 'telefono', 'message', 'mensaje'];
+const extra_fields = {};
+
+for (const [key, item] of Object.entries(fields)) {
+  if (!standard.includes(key.toLowerCase())) {
+    extra_fields[key] = item.value ?? item;
+  }
+}
+
+// 3. Objeto universal listo para el nodo Postgres o HTTP Request
+return {
+  source_url,
+  sender_name,
+  sender_email,
+  sender_phone,
+  subject: 'Contacto desde formulario',
+  message,
+  status: 'nuevo',
+  extra_fields: JSON.stringify(extra_fields)
+};`;
 
   const n8nHttpExample = `// En n8n usa un nodo 'HTTP Request':
 // Method: POST
 // URL: https://tu-dominio-dashboard.com/api/submissions
 // Body Parameters:
 {
-  "sourceUrl": "={{ $json.web_url }}",
-  "senderName": "={{ $json.nombre }}",
-  "senderEmail": "={{ $json.correo }}",
-  "senderPhone": "={{ $json.telefono }}",
-  "subject": "={{ $json.asunto }}",
-  "message": "={{ $json.mensaje }}"
+  "sourceUrl": "={{ $json.source_url }}",
+  "senderName": "={{ $json.sender_name }}",
+  "senderEmail": "={{ $json.sender_email }}",
+  "senderPhone": "={{ $json.sender_phone }}",
+  "subject": "={{ $json.subject }}",
+  "message": "={{ $json.message }}",
+  "extraFields": "={{ $json.extra_fields }}"
 }`;
 
   const jsFetchExample = `// Enviar formulario desde JavaScript (WordPress, Webflow, React, Landing)
@@ -136,6 +173,38 @@ curl_close($ch);
           </p>
           <pre className="p-4 rounded-xl bg-slate-950 text-slate-100 text-xs font-mono overflow-x-auto">
             <code>{n8nSqlExample}</code>
+          </pre>
+        </div>
+
+        {/* Option: Elementor + n8n Universal Node */}
+        <div className="bg-card border border-primary/30 rounded-xl shadow-sm overflow-hidden space-y-3 p-6 bg-gradient-to-b from-primary/5 to-transparent">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Workflow className="w-4 h-4 text-primary" />
+              <span>Elementor + n8n: Nodo Universal (Soporta Campos Extras sin cambiar n8n)</span>
+            </h2>
+            <button
+              onClick={() => handleCopy(n8nElementorCodeExample, 99)}
+              className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors shadow-sm"
+            >
+              {copiedIndex === 99 ? (
+                <>
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Copiado</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copiar Código JavaScript</span>
+                </>
+              )}
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Coloca un nodo <strong>Code</strong> en n8n justo después del Webhook de Elementor. Este código extrae los campos estándar y agrupa automáticamente cualquier campo extra (empresa, presupuesto, ciudad, etc.) en <code>extra_fields</code> para que nunca tengas que editar el workflow por cada cliente:
+          </p>
+          <pre className="p-4 rounded-xl bg-slate-950 text-slate-100 text-xs font-mono overflow-x-auto">
+            <code>{n8nElementorCodeExample}</code>
           </pre>
         </div>
 

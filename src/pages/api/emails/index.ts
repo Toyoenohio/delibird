@@ -94,6 +94,7 @@ export const GET: APIRoute = async ({ request, cookies, url }) => {
         subject: emails.subject,
         message: emails.message,
         status: emails.status,
+        extraFields: emails.extraFields,
         createdAt: emails.createdAt,
         updatedAt: emails.updatedAt,
         websiteName: websites.name,

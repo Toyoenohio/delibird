@@ -27,6 +27,7 @@ export interface EmailListItem {
   subject: string;
   message: string;
   status: string;
+  extraFields?: Record<string, any>;
   createdAt: string;
   updatedAt: string;
 }
