@@ -46,8 +46,15 @@ async function applyTriggers() {
       extracted_clean := split_part(extracted_clean, '?', 1);
       extracted_clean := split_part(extracted_clean, ':', 1);
 
-      IF extracted_clean = '' THEN
-        extracted_clean := 'general';
+      -- Never create websites for generic / import strings or non-domains
+      IF extracted_clean = '' 
+         OR extracted_clean LIKE '%importac%' 
+         OR extracted_clean LIKE '%csv%' 
+         OR extracted_clean LIKE '%general%' 
+         OR extracted_clean LIKE '%api%' 
+         OR position(' ' in extracted_clean) > 0 
+         OR position('.' in extracted_clean) = 0 THEN
+        RETURN NEW;
       END IF;
 
       -- 1. Try finding existing website by name or domain in url

@@ -34,24 +34,30 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
 
     const allWebsites = await db.select().from(websites);
+    const defaultSite = defaultWebsiteId ? allWebsites.find((w) => w.id === defaultWebsiteId) || null : null;
 
     const valuesToInsert = records.map((rec) => {
-      let matchedWebsiteId: string | null = defaultWebsiteId || null;
+      let matchedWebsite = defaultSite;
 
-      if (!matchedWebsiteId && rec.sourceUrl) {
-        const matched = allWebsites.find(
-          (w) =>
-            rec.sourceUrl.toLowerCase().includes(w.url.toLowerCase().replace(/https?:\/\//, "")) ||
-            rec.sourceUrl.toLowerCase().includes(w.name.toLowerCase())
-        );
-        if (matched) {
-          matchedWebsiteId = matched.id;
-        }
+      if (!matchedWebsite && rec.sourceUrl) {
+        const cleanRecUrl = rec.sourceUrl.toLowerCase();
+        matchedWebsite =
+          allWebsites.find(
+            (w) =>
+              cleanRecUrl.includes(w.url.toLowerCase().replace(/https?:\/\//, "")) ||
+              cleanRecUrl.includes(w.name.toLowerCase())
+          ) || null;
+      }
+
+      let finalSourceUrl = (rec.sourceUrl || "").trim();
+      const lower = finalSourceUrl.toLowerCase();
+      if (!finalSourceUrl || lower.includes("importac") || lower.includes("csv") || lower.includes("general")) {
+        finalSourceUrl = matchedWebsite ? matchedWebsite.url : "https://sitio-web.com";
       }
 
       return {
-        websiteId: matchedWebsiteId,
-        sourceUrl: rec.sourceUrl || "Importado CSV",
+        websiteId: matchedWebsite ? matchedWebsite.id : null,
+        sourceUrl: finalSourceUrl,
         senderName: rec.senderName || "Sin Nombre",
         senderEmail: rec.senderEmail,
         senderPhone: rec.senderPhone || null,

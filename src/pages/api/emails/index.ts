@@ -29,7 +29,7 @@ export const GET: APIRoute = async ({ request, cookies, url }) => {
 
     const conditions: any[] = [];
 
-    // Role-based scoping
+    // Role-based scoping & website filtering
     if (user.role === "operator") {
       if (user.assignedWebsiteIds.length === 0) {
         return new Response(
@@ -37,16 +37,29 @@ export const GET: APIRoute = async ({ request, cookies, url }) => {
           { status: 200, headers: { "Content-Type": "application/json" } }
         );
       }
-      conditions.push(inArray(emails.websiteId, user.assignedWebsiteIds));
-    }
 
-    // Filter by website or discovered domain
-    if (websiteIdParam && websiteIdParam !== "all") {
-      if (websiteIdParam.startsWith("domain:")) {
-        const domain = websiteIdParam.replace("domain:", "");
-        conditions.push(ilike(emails.sourceUrl, `%${domain}%`));
-      } else {
+      // If operator selected a specific website from their allowed list
+      if (websiteIdParam && websiteIdParam !== "all") {
+        if (!user.assignedWebsiteIds.includes(websiteIdParam)) {
+          return new Response(
+            JSON.stringify({ emails: [], total: 0, totalPages: 0, page, limit }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
         conditions.push(eq(emails.websiteId, websiteIdParam));
+      } else {
+        // Show all emails from any of the operator's assigned websites
+        conditions.push(inArray(emails.websiteId, user.assignedWebsiteIds));
+      }
+    } else {
+      // Admin website filter
+      if (websiteIdParam && websiteIdParam !== "all") {
+        if (websiteIdParam.startsWith("domain:")) {
+          const domain = websiteIdParam.replace("domain:", "");
+          conditions.push(ilike(emails.sourceUrl, `%${domain}%`));
+        } else {
+          conditions.push(eq(emails.websiteId, websiteIdParam));
+        }
       }
     }
 

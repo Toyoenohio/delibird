@@ -17,20 +17,24 @@ export const GET: APIRoute = async ({ request, cookies }) => {
   }
 
   try {
-    let siteList: any[] = [];
-    if (user.role === "admin") {
-      siteList = await db.select().from(websites).orderBy(desc(websites.createdAt));
-    } else {
+    if (user.role === "operator") {
+      let operatorSites: any[] = [];
       if (user.assignedWebsiteIds.length > 0) {
-        siteList = await db
+        operatorSites = await db
           .select()
           .from(websites)
           .where(inArray(websites.id, user.assignedWebsiteIds))
           .orderBy(desc(websites.createdAt));
       }
+      return new Response(
+        JSON.stringify({ websites: operatorSites }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
     }
 
-    // Auto-discover any websites/domains feeding directly from n8n or direct DB submissions
+    const siteList = await db.select().from(websites).orderBy(desc(websites.createdAt));
+
+    // Auto-discover any websites/domains feeding directly from n8n or direct DB submissions (Admin only)
     const distinctUrls = await db
       .select({ sourceUrl: emails.sourceUrl })
       .from(emails)
@@ -40,7 +44,15 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 
     for (const item of distinctUrls) {
       if (!item.sourceUrl) continue;
+      const lower = item.sourceUrl.toLowerCase();
+      if (lower.includes("importac") || lower.includes("csv") || lower.includes("general") || lower.includes("directa")) {
+        continue;
+      }
+
       const domain = extractDomain(item.sourceUrl);
+      if (!domain || domain.includes(" ") || !domain.includes(".")) {
+        continue;
+      }
       
       const existsInRegistered = siteList.some(
         (s) => extractDomain(s.url).toLowerCase() === domain.toLowerCase() || s.name.toLowerCase() === domain.toLowerCase()

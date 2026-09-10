@@ -63,7 +63,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   try {
-    const { name, email, password, role, websiteIds } = await request.json();
+    const { name, email, password, role, websiteIds, assignedWebsiteIds } = await request.json();
+    const targetWebsites = Array.isArray(assignedWebsiteIds) ? assignedWebsiteIds : websiteIds;
 
     if (!name || !email || !password) {
       return new Response(
@@ -97,8 +98,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       })
       .returning();
 
-    if (role === "operator" && Array.isArray(websiteIds) && websiteIds.length > 0) {
-      const assignments = websiteIds.map((siteId: string) => ({
+    if (role === "operator" && Array.isArray(targetWebsites) && targetWebsites.length > 0) {
+      const assignments = targetWebsites.map((siteId: string) => ({
         userId: newUser.id,
         websiteId: siteId,
       }));

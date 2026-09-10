@@ -24,7 +24,8 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
   }
 
   try {
-    const { name, email, password, role, websiteIds } = await request.json();
+    const { name, email, password, role, websiteIds, assignedWebsiteIds } = await request.json();
+    const targetWebsites = Array.isArray(assignedWebsiteIds) ? assignedWebsiteIds : websiteIds;
 
     const updateData: any = {
       updatedAt: new Date(),
@@ -44,11 +45,11 @@ export const PATCH: APIRoute = async ({ request, cookies, params }) => {
       .returning();
 
     // Re-assign websites
-    if (Array.isArray(websiteIds)) {
+    if (Array.isArray(targetWebsites)) {
       await db.delete(userWebsites).where(eq(userWebsites.userId, id));
 
-      if (websiteIds.length > 0 && (role === "operator" || (!role && updatedUser.role === "operator"))) {
-        const assignments = websiteIds.map((siteId: string) => ({
+      if (targetWebsites.length > 0 && (role === "operator" || (!role && updatedUser.role === "operator"))) {
+        const assignments = targetWebsites.map((siteId: string) => ({
           userId: id,
           websiteId: siteId,
         }));
@@ -115,3 +116,6 @@ export const DELETE: APIRoute = async ({ request, cookies, params }) => {
     );
   }
 };
+
+export const PUT: APIRoute = PATCH;
+

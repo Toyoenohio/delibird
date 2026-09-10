@@ -47,7 +47,7 @@ export function UserFormModal({
 
     try {
       const url = userToEdit ? `/api/users/${userToEdit.id}` : "/api/users";
-      const method = userToEdit ? "PUT" : "POST";
+      const method = userToEdit ? "PATCH" : "POST";
 
       const res = await fetch(url, {
         method,
@@ -57,6 +57,7 @@ export function UserFormModal({
           email,
           password: password || undefined,
           role,
+          websiteIds: assignedWebsiteIds,
           assignedWebsiteIds,
         }),
       });
