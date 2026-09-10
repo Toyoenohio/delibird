@@ -34,35 +34,108 @@ INSERT INTO emails (
   '{{ $json.extra_fields || "{}" }}'::jsonb
 );`;
 
-  const n8nElementorCodeExample = `// En n8n: Coloca un nodo 'Code' (JavaScript - Run Once for Each Item)
-// Recibe el webhook directo de Elementor y separa estándar de extras automáticamente:
-const fields = $json.fields || {};
-const meta = $json.meta || {};
+  const n8nElementorCodeExample = `// En n8n: Nodo 'Code' (Mode: Run Once for Each Item)
+// Compatible con formularios Elementor (application/x-www-form-urlencoded y JSON)
+const data = $json.body || $json;
+const parsedFields = {};
+const parsedTitles = {};
 
-// 1. Extraer campos estándar
-const sender_name = fields.name?.value || fields.nombre?.value || 'Sin Nombre';
-const sender_email = fields.email?.value || fields.correo?.value || '';
-const sender_phone = fields.phone?.value || fields.telefono?.value || null;
-const message = fields.message?.value || fields.mensaje?.value || '';
-const source_url = meta.page_url || $json.source_url || 'https://sitio-cliente.com';
-
-// 2. Extraer automáticamente cualquier campo extra que tenga el cliente
-const standard = ['name', 'nombre', 'email', 'correo', 'phone', 'telefono', 'message', 'mensaje'];
-const extra_fields = {};
-
-for (const [key, item] of Object.entries(fields)) {
-  if (!standard.includes(key.toLowerCase())) {
-    extra_fields[key] = item.value ?? item;
+// 1. Extraer campos con formato plano fields[nombre][value]
+for (const [rawKey, val] of Object.entries(data)) {
+  const match = rawKey.match(/^fields\\[([^\\]]+)\\]\\[([^\\]]+)\\]$/);
+  if (match) {
+    const [, fieldId, prop] = match;
+    const strVal = typeof val === 'string' ? val.trim() : val;
+    if (prop === 'value') {
+      parsedFields[fieldId] = strVal;
+    } else if (prop === 'title' && strVal) {
+      parsedTitles[fieldId] = strVal;
+    }
   }
 }
 
-// 3. Objeto universal listo para el nodo Postgres o HTTP Request
+// 2. Extraer campos si vienen como objeto anidado fields.nombre.value
+if (data.fields && typeof data.fields === 'object') {
+  for (const [fieldId, fieldObj] of Object.entries(data.fields)) {
+    if (fieldObj && typeof fieldObj === 'object') {
+      parsedFields[fieldId] = (fieldObj.value ?? '').toString().trim();
+      if (fieldObj.title) parsedTitles[fieldId] = fieldObj.title.toString().trim();
+    } else {
+      parsedFields[fieldId] = (fieldObj ?? '').toString().trim();
+    }
+  }
+}
+
+// 3. URL de la página de origen
+const source_url =
+  data['meta[page_url][value]'] ||
+  data.meta?.page_url?.value ||
+  data.meta?.page_url ||
+  data.source_url ||
+  'https://sitio-web.com';
+
+// 4. Campos estándar
+const sender_name =
+  parsedFields['nombre'] ||
+  parsedFields['name'] ||
+  parsedFields['full_name'] ||
+  data['nombre'] ||
+  data['name'] ||
+  'Sin Nombre';
+
+const sender_email =
+  parsedFields['email'] ||
+  parsedFields['correo'] ||
+  data['email'] ||
+  data['correo'] ||
+  '';
+
+const sender_phone =
+  parsedFields['telefono'] ||
+  parsedFields['phone'] ||
+  data['telefono'] ||
+  data['phone'] ||
+  null;
+
+const subject =
+  parsedFields['asunto'] ||
+  parsedFields['subject'] ||
+  data['asunto'] ||
+  data['subject'] ||
+  'Contacto desde formulario';
+
+const message =
+  parsedFields['message'] ||
+  parsedFields['mensaje'] ||
+  data['message'] ||
+  data['mensaje'] ||
+  '';
+
+// 5. Campos extras (todo lo que no sea estándar y tenga valor)
+const standardKeys = [
+  'nombre', 'name', 'full_name',
+  'email', 'correo',
+  'telefono', 'phone',
+  'asunto', 'subject',
+  'message', 'mensaje',
+  'website'
+];
+
+const extra_fields = {};
+for (const [fieldId, val] of Object.entries(parsedFields)) {
+  if (!standardKeys.includes(fieldId.toLowerCase()) && val !== '' && val !== null && val !== undefined) {
+    const label = parsedTitles[fieldId] || fieldId;
+    extra_fields[label] = val;
+  }
+}
+
+// 6. Retornar el objeto para el nodo Postgres
 return {
   source_url,
   sender_name,
   sender_email,
-  sender_phone,
-  subject: 'Contacto desde formulario',
+  sender_phone: sender_phone || null,
+  subject,
   message,
   status: 'nuevo',
   extra_fields: JSON.stringify(extra_fields)
