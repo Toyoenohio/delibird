@@ -42,17 +42,26 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       if (!matchedWebsite && rec.sourceUrl) {
         const cleanRecUrl = rec.sourceUrl.toLowerCase();
         matchedWebsite =
-          allWebsites.find(
-            (w) =>
-              cleanRecUrl.includes(w.url.toLowerCase().replace(/https?:\/\//, "")) ||
-              cleanRecUrl.includes(w.name.toLowerCase())
-          ) || null;
+          allWebsites.find((w) => {
+            const domainW = w.url.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+            const nameW = w.name.toLowerCase().trim();
+            const cleanRecDomain = cleanRecUrl.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+            return (
+              (domainW && cleanRecUrl.includes(domainW)) ||
+              (nameW && cleanRecUrl.includes(nameW)) ||
+              (cleanRecDomain && domainW.includes(cleanRecDomain)) ||
+              (cleanRecDomain && nameW.includes(cleanRecDomain))
+            );
+          }) || null;
       }
 
       let finalSourceUrl = (rec.sourceUrl || "").trim();
       const lower = finalSourceUrl.toLowerCase();
-      if (!finalSourceUrl || lower.includes("importac") || lower.includes("csv") || lower.includes("general")) {
-        finalSourceUrl = matchedWebsite ? matchedWebsite.url : "https://sitio-web.com";
+      if (!finalSourceUrl || lower.includes("importac") || lower.includes("csv") || lower.includes("general") || lower.includes("sitio-web")) {
+        finalSourceUrl = matchedWebsite ? matchedWebsite.url : "https://sitio-web.com"; // If no url and no site, set to empty/clean fallback
+        if (finalSourceUrl === "https://sitio-web.com") {
+          finalSourceUrl = "General";
+        }
       }
 
       return {

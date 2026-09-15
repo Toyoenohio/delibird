@@ -260,8 +260,9 @@ export function ImportView() {
               <thead>
                 <tr className="bg-muted/50 border-b border-border text-[11px] font-semibold text-muted-foreground uppercase">
                   <th className="py-2.5 px-3">Fecha</th>
-                  <th className="py-2.5 px-3">Remitente</th>
+                  <th className="py-2.5 px-3">Nombre</th>
                   <th className="py-2.5 px-3">Correo</th>
+                  <th className="py-2.5 px-3">Sitio / URL</th>
                   <th className="py-2.5 px-3">Teléfono</th>
                   <th className="py-2.5 px-3">Asunto</th>
                   <th className="py-2.5 px-3">Estado</th>
@@ -275,6 +276,9 @@ export function ImportView() {
                     </td>
                     <td className="py-2.5 px-3 font-medium text-foreground">{r.senderName}</td>
                     <td className="py-2.5 px-3 text-muted-foreground">{r.senderEmail}</td>
+                    <td className="py-2.5 px-3 text-xs text-primary font-mono truncate max-w-[140px]" title={r.sourceUrl}>
+                      {r.sourceUrl || "Auto-detectar"}
+                    </td>
                     <td className="py-2.5 px-3 text-muted-foreground">{r.senderPhone || "-"}</td>
                     <td className="py-2.5 px-3 max-w-xs truncate text-foreground">{r.subject}</td>
                     <td className="py-2.5 px-3">

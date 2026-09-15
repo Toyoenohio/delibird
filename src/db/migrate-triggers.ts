@@ -73,10 +73,7 @@ async function applyTriggers() {
         VALUES (
           gen_random_uuid(),
           initcap(replace(extracted_clean, '-', ' ')),
-          CASE 
-            WHEN NEW.source_url LIKE 'http%' THEN NEW.source_url 
-            ELSE 'https://' || extracted_clean 
-          END,
+          'https://' || extracted_clean,
           chosen_color,
           NOW(),
           NOW()
