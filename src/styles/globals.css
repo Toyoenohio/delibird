@@ -94,40 +94,46 @@
   background: hsl(var(--muted-foreground) / 0.4);
 }
 
-/* Dark mode subtle button glow effects */
+/* Dark mode permanent button neon glow effects */
 @layer components {
-  /* Primary buttons and actions in dark mode */
+  /* Primary buttons and actions in dark mode - always active neon glow */
   .dark button.bg-primary,
   .dark a.bg-primary,
   .dark input[type="submit"].bg-primary,
   .dark .bg-primary[role="button"] {
-    box-shadow: 0 0 14px -2px rgba(249, 115, 22, 0.35), 0 1px 2px 0 rgba(0, 0, 0, 0.4);
-    transition: box-shadow 0.2s ease, transform 0.15s ease, background-color 0.2s ease;
+    box-shadow: 0 0 16px 1px rgba(249, 115, 22, 0.45), 0 0 5px 0 rgba(249, 115, 22, 0.35), 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+    transition: box-shadow 0.25s ease, transform 0.15s ease, background-color 0.2s ease;
   }
 
   .dark button.bg-primary:hover:not(:disabled),
   .dark a.bg-primary:hover,
   .dark input[type="submit"].bg-primary:hover:not(:disabled),
   .dark .bg-primary[role="button"]:hover {
-    box-shadow: 0 0 22px 1px rgba(249, 115, 22, 0.55), 0 0 8px 0 rgba(249, 115, 22, 0.35);
+    box-shadow: 0 0 24px 3px rgba(249, 115, 22, 0.7), 0 0 10px 1px rgba(249, 115, 22, 0.5);
   }
 
-  /* Destructive action buttons in dark mode */
+  /* Destructive action buttons in dark mode - always active red neon glow */
   .dark button.bg-destructive,
   .dark a.bg-destructive {
-    box-shadow: 0 0 12px -2px rgba(239, 68, 68, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.4);
-    transition: box-shadow 0.2s ease, transform 0.15s ease, background-color 0.2s ease;
+    box-shadow: 0 0 14px 1px rgba(239, 68, 68, 0.4), 0 0 4px 0 rgba(239, 68, 68, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+    transition: box-shadow 0.25s ease, transform 0.15s ease, background-color 0.2s ease;
   }
 
   .dark button.bg-destructive:hover:not(:disabled),
   .dark a.bg-destructive:hover {
-    box-shadow: 0 0 20px 0 rgba(239, 68, 68, 0.5), 0 0 6px 0 rgba(239, 68, 68, 0.3);
+    box-shadow: 0 0 22px 3px rgba(239, 68, 68, 0.65), 0 0 8px 1px rgba(239, 68, 68, 0.45);
   }
 
-  /* Secondary, ghost and border buttons subtle hover ambient glow in dark mode */
+  /* Secondary, ghost and border buttons subtle permanent glow in dark mode */
+  .dark button:not(.bg-primary):not(.bg-destructive):not(:disabled),
+  .dark a.border {
+    box-shadow: 0 0 8px 0 rgba(249, 115, 22, 0.12);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+
   .dark button:not(.bg-primary):not(.bg-destructive):not(:disabled):hover,
   .dark a.border:hover {
-    box-shadow: 0 0 12px -2px rgba(249, 115, 22, 0.18);
+    box-shadow: 0 0 14px 1px rgba(249, 115, 22, 0.28);
   }
 }
 
