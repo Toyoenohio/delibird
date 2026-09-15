@@ -41,16 +41,27 @@ export function LoginView() {
 
       <div className="w-full max-w-md bg-card border border-border rounded-2xl p-8 shadow-xl space-y-6">
         {/* Brand Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex p-3 rounded-2xl bg-primary/10 text-primary mb-2 shadow-inner">
-            <Mail className="w-8 h-8" />
+        <div className="text-center space-y-3 flex flex-col items-center">
+          <div className="h-12 flex items-center justify-center">
+            <img
+              src="/logo-light.png"
+              alt="Sobrenombre"
+              className="h-10 w-auto object-contain block dark:hidden"
+            />
+            <img
+              src="/logo-dark.png"
+              alt="Sobrenombre"
+              className="h-10 w-auto object-contain hidden dark:block"
+            />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            MailHub Multi-Sitio
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Ingresa tus credenciales para acceder a la bandeja de correos
-          </p>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Bandeja de Correos Multi-Sitio
+            </h1>
+            <p className="text-xs text-muted-foreground mt-1">
+              Ingresa tus credenciales para acceder a la plataforma
+            </p>
+          </div>
         </div>
 
         {error && (

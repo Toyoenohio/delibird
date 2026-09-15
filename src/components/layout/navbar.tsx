@@ -50,15 +50,24 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/80 px-6 backdrop-blur-md">
       <a href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-foreground shadow-sm">
-          <Mail className="w-5 h-5" />
+        <div className="flex items-center">
+          <img
+            src="/logo-light.png"
+            alt="Sobrenombre"
+            className="h-8 w-auto object-contain block dark:hidden"
+          />
+          <img
+            src="/logo-dark.png"
+            alt="Sobrenombre"
+            className="h-8 w-auto object-contain hidden dark:block"
+          />
         </div>
-        <div>
-          <h1 className="text-base font-semibold tracking-tight text-foreground">
-            MailHub Multi-Sitio
+        <div className="hidden sm:block border-l border-border pl-3">
+          <h1 className="text-xs font-semibold tracking-tight text-foreground leading-tight">
+            Correos Multi-Sitio
           </h1>
-          <p className="text-xs text-muted-foreground hidden sm:block">
-            Panel centralizado de registros y formularios
+          <p className="text-[10px] text-muted-foreground">
+            Panel de registros y formularios
           </p>
         </div>
       </a>
