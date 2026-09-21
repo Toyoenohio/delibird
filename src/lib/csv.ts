@@ -50,15 +50,6 @@ function cleanValue(val?: string): string {
   return clean;
 }
 
-function splitFullName(fullName: string): { firstName: string; lastName: string } {
-  const parts = (fullName || "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return { firstName: "Sin Nombre", lastName: "" };
-  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
-  if (parts.length === 2) return { firstName: parts[0], lastName: parts[1] };
-  if (parts.length === 3) return { firstName: parts[0], lastName: `${parts[1]} ${parts[2]}` };
-  return { firstName: `${parts[0]} ${parts[1]}`, lastName: parts.slice(2).join(" ") };
-}
-
 export function normalizeCSVRow(row: Record<string, string>): ParsedEmailRecord | null {
   // Normalize keys to lowercase, trimmed, without accents
   const normalized: Record<string, string> = {};
@@ -67,8 +58,8 @@ export function normalizeCSVRow(row: Record<string, string>): ParsedEmailRecord 
     normalized[cleanKey] = (row[key] || "").trim();
   }
 
-  // 1. Sender Name & Split (nombre / apellido)
-  const rawFullName =
+  // 1. Sender Name
+  const senderName =
     normalized["nombre completo"] ||
     normalized["nombre y apellido"] ||
     normalized["nombre"] ||
@@ -77,9 +68,6 @@ export function normalizeCSVRow(row: Record<string, string>): ParsedEmailRecord 
     normalized["sender_name"] ||
     (normalized["apellido"] ? `${normalized["nombre"] || ""} ${normalized["apellido"]}`.trim() : "") ||
     "Sin Nombre";
-
-  const { firstName, lastName } = splitFullName(rawFullName);
-  const senderName = rawFullName;
 
   // 2. Sender Email detection
   let senderEmail =
@@ -146,9 +134,6 @@ export function normalizeCSVRow(row: Record<string, string>): ParsedEmailRecord 
 
   // 5. Extra Fields JSONB & Details Builder
   const extraFields: Record<string, any> = {};
-  if (firstName) extraFields["nombre"] = firstName;
-  if (lastName) extraFields["apellido"] = lastName;
-  if (rawFullName && rawFullName !== "Sin Nombre") extraFields["nombre_completo"] = rawFullName;
 
   const standardKeys = new Set([
     "nombre", "apellido", "nombre y apellido", "nombre completo", "name", "sender name", "sender_name",
