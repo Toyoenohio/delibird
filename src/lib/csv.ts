@@ -28,6 +28,7 @@ export interface ParsedEmailRecord {
   senderPhone?: string;
   subject: string;
   message: string;
+  extraFields?: Record<string, any>;
   status: "nuevo" | "en_proceso" | "contactado" | "cerrado" | "spam";
   createdAt: Date;
 }
@@ -40,6 +41,24 @@ function normalizeKey(str: string): string {
     .trim();
 }
 
+function cleanValue(val?: string): string {
+  if (!val) return "";
+  let clean = val.trim();
+  if (clean.includes("_")) {
+    clean = clean.replace(/_/g, " ");
+  }
+  return clean;
+}
+
+function splitFullName(fullName: string): { firstName: string; lastName: string } {
+  const parts = (fullName || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { firstName: "Sin Nombre", lastName: "" };
+  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+  if (parts.length === 2) return { firstName: parts[0], lastName: parts[1] };
+  if (parts.length === 3) return { firstName: parts[0], lastName: `${parts[1]} ${parts[2]}` };
+  return { firstName: `${parts[0]} ${parts[1]}`, lastName: parts.slice(2).join(" ") };
+}
+
 export function normalizeCSVRow(row: Record<string, string>): ParsedEmailRecord | null {
   // Normalize keys to lowercase, trimmed, without accents
   const normalized: Record<string, string> = {};
@@ -48,7 +67,21 @@ export function normalizeCSVRow(row: Record<string, string>): ParsedEmailRecord 
     normalized[cleanKey] = (row[key] || "").trim();
   }
 
-  // 1. Sender Email detection
+  // 1. Sender Name & Split (nombre / apellido)
+  const rawFullName =
+    normalized["nombre completo"] ||
+    normalized["nombre y apellido"] ||
+    normalized["nombre"] ||
+    normalized["name"] ||
+    normalized["sender name"] ||
+    normalized["sender_name"] ||
+    (normalized["apellido"] ? `${normalized["nombre"] || ""} ${normalized["apellido"]}`.trim() : "") ||
+    "Sin Nombre";
+
+  const { firstName, lastName } = splitFullName(rawFullName);
+  const senderName = rawFullName;
+
+  // 2. Sender Email detection
   let senderEmail =
     normalized["correo electronico"] ||
     normalized["correo"] ||
@@ -60,7 +93,7 @@ export function normalizeCSVRow(row: Record<string, string>): ParsedEmailRecord 
     normalized["sender_email"] ||
     "";
 
-  // If standard keys didn't yield an email (e.g. "remitente" in Elementor is a URL, but in some systems it's an email)
+  // If standard keys didn't yield an email
   if (!senderEmail || !senderEmail.includes("@")) {
     if (normalized["remitente"] && normalized["remitente"].includes("@") && !normalized["remitente"].includes("/")) {
       senderEmail = normalized["remitente"];
@@ -75,24 +108,15 @@ export function normalizeCSVRow(row: Record<string, string>): ParsedEmailRecord 
     }
   }
 
+  // If no email was provided or invalid text entered in email field, generate a clean placeholder
   if (!senderEmail || !senderEmail.includes("@")) {
-    // No valid email found in row
-    return null;
+    const slugName = normalizeKey(rawFullName).replace(/[^a-z0-9]/g, ".") || "lead";
+    senderEmail = `${slugName}@sin-correo.com`;
   }
-
-  // 2. Sender Name
-  const senderName =
-    normalized["nombre y apellido"] ||
-    normalized["nombre completo"] ||
-    normalized["nombre"] ||
-    (normalized["apellido"] ? `${normalized["nombre"] || ""} ${normalized["apellido"]}`.trim() : "") ||
-    normalized["name"] ||
-    normalized["sender name"] ||
-    normalized["sender_name"] ||
-    "Sin Nombre";
 
   // 3. Sender Phone
   const senderPhone =
+    normalized["numero de telefono"] ||
     normalized["telefono"] ||
     normalized["celular"] ||
     normalized["movil"] ||
@@ -103,16 +127,67 @@ export function normalizeCSVRow(row: Record<string, string>): ParsedEmailRecord 
     normalized["sender_phone"] ||
     undefined;
 
-  // 4. Subject
+  // 4. Form Name & Subject
+  const formName = cleanValue(
+    normalized["formname"] ||
+    normalized["form name"] ||
+    normalized["nombre del formulario"] ||
+    normalized["nombre del formulario (id)"] ||
+    ""
+  );
+
   const subject =
     normalized["asunto"] ||
     normalized["tema"] ||
     normalized["subject"] ||
     normalized["motivo"] ||
     normalized["servicio"] ||
-    "Consulta Web";
+    (formName ? `Formulario: ${formName}` : "Consulta Web");
 
-  // 5. Message & Custom Extra Fields
+  // 5. Extra Fields JSONB & Details Builder
+  const extraFields: Record<string, any> = {};
+  if (firstName) extraFields["nombre"] = firstName;
+  if (lastName) extraFields["apellido"] = lastName;
+  if (rawFullName && rawFullName !== "Sin Nombre") extraFields["nombre_completo"] = rawFullName;
+
+  const standardKeys = new Set([
+    "nombre", "apellido", "nombre y apellido", "nombre completo", "name", "sender name", "sender_name",
+    "correo", "email", "correo electronico", "correo del remitente", "e-mail", "mail", "sender email", "sender_email",
+    "telefono", "numero de telefono", "celular", "movil", "phone", "whatsapp", "telefono de contacto", "sender phone", "sender_phone",
+    "asunto", "tema", "subject", "motivo", "servicio",
+    "mensaje", "comentario", "message", "body", "descripcion",
+    "web", "url", "sitio", "sitio web", "pagina", "pagina de origen", "website", "source url", "source_url", "origen", "remitente", "referer", "referrer", "page url",
+    "status", "estado", "fase",
+    "fecha", "date", "createdtime", "created time", "created at", "created_at", "creado en", "timestamp", "hora", "fecha y hora",
+    "nombre del formulario (id)", "nombre del formulario", "form name", "formname", "form id", "id del envio", "id de usuario", "agente de usuario", "user agent", "ip del usuario", "user ip", "ip", "leadid", "lead id"
+  ]);
+
+  const extraDetails: string[] = [];
+  for (const [originalKey, val] of Object.entries(row)) {
+    const cleanK = normalizeKey(originalKey);
+    const cleanedVal = cleanValue(val);
+    if (!cleanedVal) continue;
+
+    if (cleanK === "plazo de compra") {
+      extraFields["plazo_de_compra"] = cleanedVal;
+      extraDetails.push(`Plazo de compra: ${cleanedVal}`);
+    } else if (cleanK === "renta liquida") {
+      extraFields["renta_liquida"] = cleanedVal;
+      extraDetails.push(`Renta líquida: ${cleanedVal}`);
+    } else if (cleanK === "leadid" || cleanK === "lead id") {
+      extraFields["leadId"] = cleanedVal;
+      extraDetails.push(`ID del Lead: ${cleanedVal}`);
+    } else if (cleanK === "formname" || cleanK === "form name") {
+      extraFields["formName"] = cleanedVal;
+      extraDetails.push(`Formulario: ${cleanedVal}`);
+    } else if (!standardKeys.has(cleanK)) {
+      const fieldKey = cleanK.replace(/\s+/g, "_");
+      extraFields[fieldKey] = cleanedVal;
+      extraDetails.push(`${originalKey.trim()}: ${cleanedVal}`);
+    }
+  }
+
+  // 6. Message Body
   let mainMessage =
     normalized["mensaje"] ||
     normalized["comentario"] ||
@@ -121,24 +196,8 @@ export function normalizeCSVRow(row: Record<string, string>): ParsedEmailRecord 
     normalized["descripcion"] ||
     "";
 
-  const standardKeys = new Set([
-    "nombre", "apellido", "nombre y apellido", "nombre completo", "name", "sender name", "sender_name",
-    "correo", "email", "correo electronico", "correo del remitente", "e-mail", "mail", "sender email", "sender_email",
-    "telefono", "celular", "movil", "phone", "whatsapp", "telefono de contacto", "sender phone", "sender_phone",
-    "asunto", "tema", "subject", "motivo", "servicio",
-    "mensaje", "comentario", "message", "body", "descripcion",
-    "web", "url", "sitio", "sitio web", "pagina", "pagina de origen", "website", "source url", "source_url", "origen", "remitente", "referer", "referrer", "page url",
-    "status", "estado", "fase",
-    "fecha", "date", "created at", "created_at", "creado en", "timestamp", "hora", "fecha y hora",
-    "nombre del formulario (id)", "nombre del formulario", "form name", "form id", "id del envio", "id de usuario", "agente de usuario", "user agent", "ip del usuario", "user ip", "ip"
-  ]);
-
-  const extraDetails: string[] = [];
-  for (const [originalKey, val] of Object.entries(row)) {
-    const cleanKey = normalizeKey(originalKey);
-    if (!standardKeys.has(cleanKey) && val && val.trim()) {
-      extraDetails.push(`${originalKey.trim()}: ${val.trim()}`);
-    }
+  if (!mainMessage && formName) {
+    mainMessage = `Lead recibido desde formulario "${formName}"`;
   }
 
   let finalMessage = mainMessage;
@@ -151,8 +210,7 @@ export function normalizeCSVRow(row: Record<string, string>): ParsedEmailRecord 
     }
   }
 
-  // 6. Source URL / Website detection
-  // Prioritize URL fields (e.g. in Elementor Spanish, "Remitente" is the page URL https://domain.cl/contacto/)
+  // 7. Source URL / Website detection
   let sourceUrl = "";
   const possibleUrlFields = [
     normalized["remitente"],
@@ -177,7 +235,6 @@ export function normalizeCSVRow(row: Record<string, string>): ParsedEmailRecord 
     }
   }
 
-  // If no explicit URL found, check if there's a website slug/name (e.g. "atfgroup", "pailamilla")
   if (!sourceUrl) {
     sourceUrl =
       normalized["website"] ||
@@ -187,10 +244,10 @@ export function normalizeCSVRow(row: Record<string, string>): ParsedEmailRecord 
       normalized["pagina"] ||
       normalized["source url"] ||
       normalized["source_url"] ||
-      "";
+      "https://micoachinmobiliario.cl";
   }
 
-  // 7. Status
+  // 8. Status
   let status: "nuevo" | "en_proceso" | "contactado" | "cerrado" | "spam" = "nuevo";
   const rawStatus = (normalized["status"] || normalized["estado"] || normalized["fase"] || "").toLowerCase();
   if (rawStatus.includes("proc") || rawStatus.includes("proceso")) {
@@ -203,9 +260,11 @@ export function normalizeCSVRow(row: Record<string, string>): ParsedEmailRecord 
     status = "spam";
   }
 
-  // 8. CreatedAt Date
+  // 9. CreatedAt Date
   let createdAt = new Date();
   const rawDate =
+    normalized["createdtime"] ||
+    normalized["created time"] ||
     normalized["creado en"] ||
     normalized["fecha"] ||
     normalized["date"] ||
@@ -228,6 +287,7 @@ export function normalizeCSVRow(row: Record<string, string>): ParsedEmailRecord 
     senderPhone,
     subject,
     message: finalMessage,
+    extraFields,
     status,
     createdAt,
   };

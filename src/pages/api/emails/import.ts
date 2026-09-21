@@ -73,6 +73,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         subject: rec.subject || "Sin Asunto",
         message: rec.message || "Sin Mensaje",
         status: rec.status || "nuevo",
+        extraFields: rec.extraFields || {},
         createdAt: new Date(rec.createdAt),
         updatedAt: new Date(),
       };
