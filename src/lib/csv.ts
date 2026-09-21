@@ -186,7 +186,7 @@ export function normalizeCSVRow(row: Record<string, string>): ParsedEmailRecord 
   }
 
   let finalMessage = mainMessage;
-  if (extraDetails.length > 0) {
+  if (extraDetails.length > 0 && !mainMessage.includes("--- Datos Adicionales ---")) {
     const detailsBlock = extraDetails.join("\n");
     if (finalMessage) {
       finalMessage = `${finalMessage}\n\n--- Datos Adicionales ---\n${detailsBlock}`;
